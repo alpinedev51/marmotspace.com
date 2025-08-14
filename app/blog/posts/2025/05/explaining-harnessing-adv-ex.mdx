@@ -1,0 +1,714 @@
+---
+title: "Paper Notes: 'Explaining and Harnessing Adversarial Examples'"
+publishedAt: "2025-05-22"
+summary: "An in-depth breakdown on the paper, "Explaining and Harnessing Adversarial Examples" by Goodfellow et al."
+category: 'lesson'
+subject: 'AML'
+author: 'Austin'
+---
+
+Hello, in this post we are going to breakdown and walkthrough the paper, _Explaining and Harnessing Adversarial Examples_ by Goodfellow et al.
+
+This is a great foundational paper for those interested in adversarial machine learning. Additionally, Goodfellow is a great author and his papers and books tend to be of high quality.
+
+I am going to focus in on technical details that some may miss and get stuck on when first reading it. The structure of the post follows the paper, and expands upon areas that I myself had to make sure I thoroughly understood before moving on.
+
+---
+
+# Abstract
+
+The abstract essentially just states that the misclassification of adversarial examples is a current issue in machine learning models including neural networks. 
+
+They then briefly explain previous and related works that attribute this to high nonlinearity and overfitting of these models. However, they disagree and argue instead that it's caused by neural networks' linear nature (especially in high dimensions, as we will see later on). 
+
+They end by explaining that they have quantitiative results to justify this argument, introducing generalization of adverasial examples across achitectures and training sets, and yield a simple and fast method of creating adversarial examples.
+
+---
+
+# Introduction
+
+This section is straightforward, but there are subtle details that can be missed and unappreciated if you skim over. Additionally, it can cause some confusion because the vague language states that neural networks are both highly nonlinear and linear. Particularly:
+
+	_"The cause of these adversarial examples was a mystery, and speculative explanations have suggested it is due to extreme nonlinearity of deep neural networks, perhaps combined with insufficient model averaging and insufficient regularization of the purely supervised learning problem. We show that these speculative hypotheses are unnecessary. Linear behavior in high-dimensional spaces is sufficient to cause adversarial examples."_
+
+I'll explain here:
+
+## Clarifying the "Linearity" In Neural Networks
+
+Neural networks are compositions of linear operations (affine transformations: $Wx + b$) and nonlinear activations (ReLU, sigmoid, etc.). So overall, they are nonlinear function approximators.
+
+However, they key insight of this paper is that despite the presence of nonlinearities, the function learned by a deep network often behaves in an approximately linear way in **high dimenionsal space**, especially locally around input points.
+
+That is:
+Neural networks behave "too linearly" in high-dimensional input space, and that is sufficient to cause adversarial examples.
+
+When we save the function behaves approximately linear locally around input points, we're talking about the neighborhood of an input in the input space.
+
+**Formally:**
+
+Let $f(x)$ be the function computed by the neutral network (mapping input to logits or softmax scores).
+
+For some small perturbation, $\delta$, we can write a first-order Taylor approximation:
+
+```math
+f(x+\delta) \approx f(x) + J_f(x)\cdot \delta
+```
+
+where $J_f(x)$ is the Jacobian of $f$ at point $x$.
+
+If this approximation is accurate for small $\delta$, then $f$ is locally linear around $x$.
+
+This approximation becomes _increasingly valid in high dimensions_, especially with ReLU activations, because:
+- ReLU is piecewise linear: within a linear region (where no units change from on/off), the whole network beceomes an affine function.
+- The number of such regions grows, but the _probability of jumping to a new one with small $\delta$ remains low_ in high dimensions unless $\delta$ is crafted adversarially.
+
+Let's expand on that second point briefly.
+
+## Piecewise Linearity of ReLU Networks
+
+Recall that neural networks using ReLU activation functions are piecewise linear.
+- The input space $\mathbb{R}^n$ is divided into many **linear regions**. Precisely, if we have $l$ activation units/neurons, then the number of regions is at most
+
+```math
+\sum_{j=0}^n \binom{l}{j}
+```
+- Within each region, the entire network computes an **affine transformation** since ReLU is linear on each side (either identity or zero).
+
+These linear regions are formed by different activation patterns of the ReLU units:
+- A unit is active if its pre-activation input is $>0$.
+- A unit is inactive if its pre-activation input is $\leq 0$.
+
+So every unique on/off pattern across all units defines a distinct region of input space where the network behaves linearly.
+
+Each of these regions is bounded by **hyperplanes** where individual ReLUs switch on/off.
+
+## Linearity of Neural Networks in High Dimensionality
+
+In high-dimensional input spaces, we get two interesting, opposing effects:
+
+### 1. The number of linear regions grows very fast
+
+- With more neurons and more input dimensions, there are exponentially more activation patterns (roughly).
+- The network can thus represent very complex, highly nonlinear functions _globally_.
+
+### 2. But a small perturbation stays in the same region with high probability
+
+Even though there are many regions, each one:
+- Is relatively large compared to the size of a small $\epsilon$-ball around a data point.
+- Is bounded by activation boundaries.
+So if you randomly nudge an input $x$ a little, say: $x' = x+\delta$, where $||\delta|| < \epsilon$, then the likelihood of crossing one of those boundaries is low, unless:
+- $\delta$ is aligned with the gradient in just the right way. Hence, adversarially crafted to push toward a decision boundary or across activation patterns.
+
+So random noise will usually stay within the same region. But adversarial perturbations can be engineered to cross important boundaries, even with minimal change.
+
+## Why This Causes Adversarial Vulnerability
+
+If $f$ is locally linear, then a small, adversarially chosen $\delta$ can predictably push $f(x+\delta)$ across a decision boundary. This is why FGSM works so well.
+
+This only works if the linear approximation $f(x+\delta) = f(x) + \nabla f(x)^T \cdot \delta$ is reliable in the $\epsilon$ neighborhood of $x$.
+
+In contrast, a truly nonlinear function like a radial basis function network (RBF network) may not be well-approximated linearly, and so small $\delta$ won't reliably produce predictable output shifts.
+
+---
+
+# Related Works
+
+## Summary: Szegedy et al. (2014b)
+
+Szegedy et al.'s earlier paper was the first to rigorously document and explore adversarial exmaples. Goodfellow et al. built on these observations.
+
+### 1. Adversarial Examples are Reliably Discoverable
+
+- They used **box-constrained L-BFGS** (a second-order optimization method) to find adversarial perturbations
+	- Side Note: L-BFGS stands for Limited-memory Broyden-Fletcher-Goldfarb-Shanno algorithm. It's a quasi-Newton method for unconstrained optimization. Some key features are that it approximates the inverse Hessian using gradient differences over the last $m$ iterations (hence, "limited memory"). Unlike full BFGS, it does not store the full Hessian, making it feasible for high-dimensional problems. Perhaps I will make a post going into this and some optimization basics later on.
+- This required solving an optimizaiton problem with constraints like: "find the smallest $\delta$ such that $x+\delta$ causes a misclassification and remains a valid input".
+
+### 2. Adversarial Examples are Imperceptible to Humans
+
+- On complex data, like images from ImageNet, the perturbed inputs were visually indistinguishable from the originals, yet confidently misclassified by the state-of-the-art models.
+- This revealed a deep misalignment bewteen model behavior and human visual perception.
+
+### 3. Transferrability Across Models
+
+- Adversarial examples often transfer across different models:
+	- Different architectures (e.g., VGG vs AlexNet).
+	- Models trained on different training data subsets.
+	- Even models trained with different training procedures, initialization, or hyperparameters.
+- This suggested that adversarial examples exploit shared blind spots across models - not idiosyncrasies.
+
+### 4. Even Simple Models are Vulnerable
+
+- Linear models like shallow softmax regression also suffered from adversarial vulnerability.
+- The issue wasn't unique to deep learning or large models, it pointed to something more fundamental.
+
+### 5. Adversarial Training Helps, But was Computationally Expensive
+
+- They showed early evidence that training on adversarial examples could make models more robust.
+- But the process (solving an optimization problem per input) was too slow and too expensive for practical use, especially on large datasets.
+
+## What These Related Works Point To
+
+Models that perform well on natural data distributions may not actually learn the underlying semantic concepts, but instead rely on fragile patterns that break outside the training manifold.
+
+Szegedy et al. described this as a "Potemkin village": models look like they work well, but only because the test data is similar to the training data. Step slightly off-distribution and the illusion collapses.
+
+---
+# The Linear Explanation of Adversarial Examples
+
+## 1. Precision Limits of Input Features
+
+The authors start by pointing out something subtle but important:
+	Digital inputs (like 8-bit images) have limited precision: 1/255 in each pixel.
+- Note: They are referring to the normalized 8-bit float representation.
+So any perturbations smaller than that threshold should, in theory, be completely invisible and have no meaningful effect.
+
+Hence the expectation: 
+```math
+||\eta||_\infty < \epsilon \Rightarrow f(x+\eta) \approx f(x)
+```
+But the surprising thing is, it does have a meaningful effect.
+
+## 2. The Case of a Linear Classifier
+
+Now they analyze a purely linear model, like logistic regression or a single-layer linear classifier ignorning the shift from origin: 
+```math
+f(x) = w^Tx
+```
+Define:
+- $x\in \mathbb{R}^n$: input
+- $w\in \mathbb{R}^n$: learned weight vector
+- $\eta\in\mathbb{R}^n$: perturbation
+- $||\eta||_\infty < \epsilon$: max-norm bound on perturbation - ensures each element of $\eta$ is sufficiently small.
+
+They compute: 
+```math
+f(\tilde x) = w^T\tilde x = w^T x + w^T\eta
+```
+
+So the change in activation caused by the perturbation is: 
+```math
+\Delta = w^T\eta
+```
+## 3. How to Maximize the Change
+
+The goal of an attacker is to maximize $w^T\eta$, which pushes the score up or down and potentially changes the predicted class. 
+
+The max change occurs when: 
+```math
+\eta = \epsilon \text{sign} (w)
+```
+Why? Because:
+- You're allowed to perturb each input dimension by up to $\pm \epsilon$. Anymore, and you are actually changing the input. Remember, the input should stay in the same class for a classification problem, but you want the model to misclassify it.
+- The best way to maximize the inner product is to align each $\eta_i$ with the sign of $w_i$.
+
+This is the Fast Gradient Sign Method (FGSM) in linear form essentially.
+
+## 4. What Happens in High Dimensions?
+
+Assume:
+- The average magnitude of the weights is $m$, i.e. $\frac{1}{n}\sum |w_i| = m$.
+- There are $n$ input features.
+
+Then the activation will grow by: 
+```math
+w^T\eta = \epsilon \sum_{i=1}^n |w_i| = \epsilon m n
+```
+This is crucial:
+	Even if $\epsilon$ is very small, the total dot product grows linearly with the input dimension $n$.
+
+So in high dimensions, a tiny change per pixel or along each dimension accumulates into a huge shift in the model's decision boundary.
+
+## 5. "Accidental Steganography"
+
+Since $||\eta||_\infty$ doesn't grow with dimensionality, but the change in activation does grow linearly with $n$, then for high dimensional problems we can make very very small changes to the input ($\eta$) that add up to one large change to the output.
+
+That is,
+- Because the model aggregates via a dot product, the total effect scales as: 
+```math
+w^T \eta = \sum_{i=1}^n w_i\eta_i \approx \epsilon \sum_{i=1}^n |w_i| \sim \mathcal{O}(n)
+```
+- So a small, bounded perturbation per feature can cause a large cumulative effect in high dimensions.
+
+The author then states:
+	"We can think of this as a sort of 'accidental steganography'".
+
+**Steganography** is the practice of hiding a signal inside of a medium in a way that's imperceptible to human observers.
+
+Here: An adversarial signal is hidden in the input, imperceptible in any single dimension, but picked up strongly by the linear classifier because it aligns with its weight vector.
+
+This is the vulnerability: linear models cannot distinguish between "true" semantic signal and aligned noise if the noise is projected along the same direction as the weights.
+
+## Concluding
+
+- It's not about deep neural networks being nonlinear or overfitting.
+- Even the simplest model, shallow softmax regression, suffers from this.
+- The key ingredients are:
+	- Linearity (local linearity in activation functions).
+	- High input dimension.
+
+Thus, "This explanation shows that a simple linear model can have adversarial examples if its input has sufficient dimensionality."
+
+---
+
+# Linear Perturbation of Non-Linear Models
+
+## Their Hypothesis
+
+They state:
+
+	_"We hypothesize that neural networks are too linear to resist linear adversarial perturbation."_
+
+This is a crucial hypothesis of the paper. We already discussed why and how.
+
+## Tension Between Optimization and Robustness
+
+They state:
+
+	_"LSTMs, ReLUs, and maxout networks are all intentionally designed to behave in very linear ways, so that they are easier to optimize."_
+
+We want nonlinearity for expressiveness but we also need gradients to flow effectively (avoiding vanishing/exploding gradients), so popular architectures bias towards piecewise linear or near-linear activations.
+
+## More Nonlinear Models
+
+They state:
+
+	_"More nonlinear models such as sigmoid networks are carefully tuned to spend most of their time in the non-saturating, more linear regime for the same reason."_
+
+The **saturation regime** is where gradients vanish and learning stalls. This happens towards the tail ends of the functions, where it's nearly flat and the gradient is nearly 0.
+
+So the networks are tuned so that the majority of the input is mapped by the activation functions to be in the region that looks "more linear".
+
+So again, even ostensibly "nonlinear" functions behave almost linearly where training is most effective.
+
+## Suggestions of Linear Behavior
+
+They state:
+	
+	_"This linear behavior suggests that cheap, analytical perturbations of a linear model should also damage neural networks."_
+
+This is the insight that leads to FGSM, which we will see later.
+
+## Optimal Perturbation
+
+Here they derive what they refer to as the "optimal max-norm constrained perturbation":
+
+	_"Let $\theta$ be the parameters of a model, $x$ the input to the model, $y$ the targets associated with $x$ (for machine learning tasks that have targets) and $J(\theta, x, y)$ be the cost used to train the neural network. We can linearize the cost function around the current value of $\theta$..."_
+
+Let's stop here. The input $x$ is fixed at inference time and we want to perturb it slightly to make the model misclassify. That is, find some $\eta$ so that $x+\eta$ is misclassified, where $\eta$ is the adversarial perturbation we want to compute.
+
+$\epsilon$ is a small scalar controlling the magnitude of the perturbation. Remember where we derived this from earlier, it's essentially the max degree of accuracy of the data.
+
+**Goal:** Find a small perturbation $\eta$ to add to the input $x$ that _maximally increases_ the loss function $J(\theta, x+\eta, y)$, subject to the constraint $||\eta||_\infty \leq \epsilon$.
+
+When they say "We can linearize the cost function around the current value of $\theta$", they mean that:
+
+```math
+J(\theta, x+\eta, y) \approx J(\theta, x, y) + \nabla_x J(\theta, x, y)^T\eta
+```
+Even though the cost function is usually a complicated, non-convex function, this approximation is valid for small enough $\eta$.
+
+**Task**: Maximize the inner product between the gradient and perturbation, under the norm constraint. Mathematically, we want to find:
+
+```math
+\eta^* = \arg \max_{||\eta||_\infty \leq \epsilon} \nabla_x J(\theta, x, y)^T\eta
+```
+
+## Fast Gradient Sign Method (FGSM)
+
+Solving this task is the derivation of the Fast Gradient Sign Method, which is:
+
+```math
+\eta = \epsilon \text{sign}\Big[\nabla_x J(\theta, x, y)\Big]
+```
+
+**Note: The required gradient is easily obtained via backpropagation!**
+
+## Derivation
+
+This is a classic constrained maximization of a linear function over a box (hypercube) in high dimensions.
+- The gradient $\nabla_x J(\theta, x, y)$ is _fixed_.
+- The feasible set is all perturbations such that each component $\eta_i \in [-\epsilon, \epsilon]$.
+
+**Geometric Derivation:** The maximum inner product of a fixed vector with a variable in an $l_\infty$-ball is achieved when each coordinate of $\eta$ takes its extreme value in the direction of the gradient's sign. We explain this in more detail below, but for now, let's continue with the simple optimization problem.
+
+Let $g\in \mathbb{R}^n$ be a fixed vector (like the gradient of the loss). Let $\eta\in \mathbb{R}^n$ be a perturbation constrained such that $||\eta||_\infty \leq \epsilon$.
+
+We aim to solve:
+
+```math
+\max_{||\eta||_\infty \leq \epsilon} g^T\eta = \sum_{i=1}^n g_i\eta_i
+```
+Well, this optimization problem is separable across coordinates:
+
+```math
+\max_{||\eta||_\infty \leq \epsilon} \sum_{i=1}^n g_i\eta_i = \sum_{i=1}^n \max_{|\eta_i| \leq \epsilon} g_i\eta_i
+```
+
+So we can optimize each coordinate independently:
+- If $g_i > 0$, then $\max_{|\eta_i|\leq \epsilon} g_i\eta_i = g_i\epsilon$.
+- If $g_i < 0$, then $\max_{|\eta_i|\leq \epsilon} g_i\eta_i = -g_i\epsilon$.
+- If $g_i = 0$, then $\max_{|\eta_i|\leq \epsilon} g_i\eta_i = 0$ and any $\eta_i$ within the constraints works.
+
+Hence, for each component: 
+```math
+\eta_i^* = \epsilon \text{sign}(g_i)
+```
+Or, 
+```math
+\eta^* = \epsilon \text{sign} (g)
+```
+### Geometric Intuition
+
+Since the function is linear in $\eta$, the optimum will occur at a corner of the $l_\infty$-ball (i.e., the boundary of the box-shaped contraint region). Why? A linear function over a convex set always reaches its extremum on the boundary. For a box-constraint, these extrema are at the vertices.
+
+In more detail, the $l_\infty$-ball in $\mathbb{R}^n$ is an n-dimensional hypercube centered at 0, with side length $2\epsilon$. Its corners are the points where each coordinate of $\eta$ is either $\epsilon$ or $-\epsilon$.
+
+We are maximizing the dot product $g^T\eta$ over this hypercube. The dot product is maximized at the corner that aligns most with the direction of $g$. That is, the corner where every $\eta_i$ is a the exterme $\pm \epsilon$, matching the sign of $g_i$. This matches our result above.
+
+## Findings from FGSM
+
+They found that this method produced some pretty remarkable results.
+- Using $\epsilon = 0.25$, they caused a shallow softmax classifier to have an error rate of 99.9% with an average confidence of 79.3% on the MNIST test set.
+- In the same setting, a maxout network misclassifies 89.4% of their adversarial examples with an average confidence of 97.6%.
+- Using $\epsilon = 0.1$, they obtain an error rate of 87.15% and an average probabiliyt of 96.6% assigned to the incorrect labels when using a convolutional maxout network on a preprocessed version of CIFAR-10 test set.
+They also found that rotating $x$ by a small angle in the direction of the gradient reliably produces adversarial examples.
+
+These results provide more support for their hypothesis that adversarial examples are a result of the linearity of these neural networks.
+
+---
+
+# Adversarial Training of Linear Models Versus Weight Decay
+
+The FGSM isn't always exact. For many neural networks, it just gives a good method for producing adversarial examples, but perhaps not the optimal adversarial perturbation.
+
+They consider the simplest possible model: logistic regression (a single layer, single node neural network with a sigmoid as the activation function). In this case, the fast gradient sign method is _exact_. They use this case to gain more intuition for how adversarial examples are generated in such a simple setting.
+
+_"If we train a single model to recognize labels $y\in \{-1, 1\}$ with $P(y=1) = \sigma(w^T x + b))$ where $\sigma(z)$ is the logistic sigmoid function, then training consists of gradient descent on_
+
+```math
+E_{x, y\sim p_{data}}\zeta (-y(w^T x + b))
+```
+
+_where $\zeta(z) = \log(1 + \exp(z))$ is the softplus function. We can derive a simple analytical form for tranining on the worst-case adversarial perturbation of $x$ rather than $x$ itself, based on gradient sign perturbation."_
+
+Here's what is going on in the quote:
+
+- The model is a binary classification task using logistic regression. We see that $P(y=1|x) = \sigma(w^Tx + b)$ and so $P(y=-1|x) = 1 - \sigma(w^Tx + b)$. In shorthand, you can unify this to the expression:
+
+```math
+P(y|x) = \sigma(yz)
+```
+
+since $1 - \sigma(z) = \sigma(-z)$.
+- The training objective is minimizing the expected softplus loss. This is equivalent to cross-entropy loss in logistic regression when you're comparing one-hot target to the model's probability distribution. That's because the negative log loss of $\sigma(yz)$ for labels $y\in\{-1, 1\}$ is
+
+```math
+-\log \sigma(yz) = \log(1 + e^{-yz}) = \zeta(-yz)
+```
+
+- The authors state that we can derive a closed-form for training on adversarial examples using FGSM in this setting. Because logistic regression is linear in $x$, the FGSM perturbation (which is derived under the assumption of local linearity) exactly solves the inner maximization of the adversarial training objective.
+	- "Recall, logistic regression is a linear classifier, since $z= w^Tx + b$ is a linear function of the input $x$, even though the mode outputs a probability through a nonlinear sigmoid. Geometrically, the decision boundary - defined by the condition that $w^Tx + b = 0$ - is a linear hyperplane separating class $-1$ from class $+1$."
+
+They then state:
+
+	_"Note that the sign of the gradient is just $-\text{sign}(w)$, and that $w^T\text{sign}(w) = ||w||_1$ The adversarial version of logistic regression is therefore to minimize_
+	```math
+	E_{x, y\sim p_{data}}\zeta (y(\epsilon||w||_1 - w^Tx - b))
+	```
+	_"_
+
+Let's try to unpack what is going on here.
+
+The authors want to modify the standard logistic objective function to account for worst-case perturbations of the input - this is what they mean by the "adversarial version" of the logistic regression.
+
+## Adversarial Training Objective Explained
+
+We want to **train the model not on $x$**, but on $x+\eta$ where $\eta$ is an adversarial perturbation chosen to maximize the loss.
+
+The goal of standard training is to minimize the expected loss/objective function:
+
+```math
+\min_{w,b} E_{x,y\sim p_{data}}\zeta(-y(w^Tx+b))
+```
+
+We want the model to not just classify $x$ correctly, but also nearby adversarially perturbed inputs $x+\eta$, where:
+
+- $||\eta||_\infty \leq \epsilon$
+- $\eta$ is chosen by the adversary to maximize the loss.
+
+We then modify the loss to explicitly account for the worst-case loss in a small $\epsilon$-ball around $x$:
+
+```math
+\min_{w,b} E_{x, y \sim p_{data}}\Big [\max_{||\eta||_\infty \leq \epsilon} \zeta\Big(-y(w^T(x+\eta) + b)\Big)\Big ]
+```
+
+- $\zeta(-y(w^T(x+\eta) + b))$ is the loss on an adversarially perturbed input $x+\eta$.
+- The inner maximization finds the perturbation $\eta$ that hurts the model the most.
+- The outer minimization tries to find the weights that make the model "accurate" while also being robust to such perturbations.
+
+Now let's focus on: 
+```math
+\max_{||\eta||_\infty \leq \epsilon} \zeta\Big(-y(w^T(x+\eta) + b)\Big) = \zeta\Big(\max_{||\eta||_\infty \leq \epsilon} -y(w^Tx +w^T\eta + b)  \Big)
+```
+
+Since $\zeta$ is monotonically increasing, we can pull it out and focus on maximizing the input - the linear part:
+
+```math
+\zeta\Big(\max_{||\eta||_\infty\leq \epsilon} (-yw^Tx - yb -yw^T\eta)\Big)
+```
+
+And the maximization is only done over $\eta$, so we can just focus on:
+
+```math
+\max_{||\eta||_\infty\leq \epsilon} -(yw^T\eta)
+```
+
+Well we essentially know the solution to this. FGSM states that the optimal max-norm perturbation for a model with loss $J(\theta, x, y)$ is $\eta^* = \epsilon \text{sign}\Big[\nabla_x J(\theta, x, y)\Big]$. Hence, the optimal adversarial perturbation $\eta^*$ is: 
+```math
+\eta^* = \epsilon\text{sign}(\nabla_x J)
+```
+The sign of the gradient is: 
+```math
+\text{sign}(\nabla_x J) = \text{sign}\Big[\zeta'(-y(w^Tx +b))(-yw)\Big] = \text{sign}\Big[ -y \sigma\Big(-y(w^Tx+b)\Big)w\Big] =\text{sign}(-yw)
+```
+Since $\zeta'(z) = \sigma(z)$ and $\sigma(z) > 0$ for all $z$, which implies $\text{sign}(\sigma(z)) = 1$ for all $z$. Thus, 
+```math
+\text{sign}(\nabla_x J) = -y\text{sign}(w)
+```
+Thus, the optimal $\eta^*$ can be expressed as: 
+```math
+\eta^* =  \epsilon\text{sign}(\nabla_x J) = -y\epsilon \text{sign}(w)
+```
+and 
+```math
+\max_{||\eta||_\infty \leq \epsilon} -yw^T\eta = y^2w^T\epsilon \text{sign}(w) = \epsilon w^T\text{sign}(w) = \epsilon||w||_1
+```
+### Finishing the Adversarial Objective Derivation: Generalized
+
+Recall our new adversarial objective is: 
+```math
+E_{x, y \sim p_{data}}\Big [\max_{||\eta||_\infty \leq \epsilon} \zeta\Big(-y(w^T(x+\eta) + b)\Big)\Big ] = E_{x, y\sim-{data}}\Big[\zeta\Big(-yw^Tx - yb + \max_{||\eta||_\infty\leq\epsilon}(-yw^T\eta)\Big)\Big] 
+```
+Which is equivalent to: 
+```math
+E_{x, y\sim-{data}}\Big[\zeta\Big(-yw^Tx - yb +\epsilon ||w||_1\Big)\Big]
+```
+Plugging into the objective function, we get:
+```math
+E_{x, y\sim p_{data}}\Big[ \zeta\Big(-y(w^Tx + b) + \epsilon||w||_1\Big)  \Big]
+```
+
+When we are considering $y=1$, as the authors do in the paper, then the sign of the gradient is just the negative of the sign of $w$. And you can equivalently express the objective function as (I don't understand the purpose of this to be honest):
+
+```math
+E_{x, y\sim p_{data}}\Big[\zeta\Big(y(\epsilon ||w||_1 - w^Tx - b)\Big)  \Big]
+```
+
+---
+
+# Adversarial Training of Deep Networks
+
+## The Capacity for Robustness of Deep Networks
+
+Here the authors transition from analyzing adversarial training for a linear model (i.e., logistic regression) to analyzing adversarial training for deep neural networks.
+
+The key idea of the first paragraph is that deep networks are **capable** of resisting adversarial examples - but only if they are trained to do so. The Universal Approximator Theorem states deep networks have the ability or the capacity to model arbitrarily complex, non-linear functions, but it doesn't say anything about discovering a function with all of the desired properties. Standard supvervised training doesn't train the network to learn a robust function that is resistant to adversarial examples, so this desired property must be encoded into the training procedure somehow.
+
+Here is a critical quote that I had to stop to think about what they were saying:
+
+	_"Shallow linear models are not able to become constant near training points while also assigning different outputs to different training points."_
+
+- Linear models (like a perceptron or logistic regression) **must have a single hyperplane** separating classes.
+- So if you ask them to be "flat" (unchanging) around every point, they can't still assign *different* labels to those points.
+- Deep networks can do this: they can be flat around each training (i.e., confident and robust there) while still giving different outputs in other areas.
+
+## Szegedy et al. (2014)
+
+Training on adversarial exmaples can regularize a network - not in the traditional sense (like dropout), but in a way tht makes it more robust to perturbations by revealing and correcting how it fails.
+
+Previous findings from Szegedy et al. (2014):
+
+- Instead of training only on original inputs, they trained the model on a batch that includes adversarial examples. This acted as a kind of regularization: It forced the network to learn more stable decision boundaries, reducing overfitting to superficial patterns in the data.
+- Classic data augmentation's goal is to generalize to natural variations - these are plausible variations that simulate the real world.
+- Adversarial examples are (often) not natural. But they are extremely informative, because:
+	- They target vulnerabilities in how the model has internally carved up decision space.
+	- They reveal directions in input space that the model overreacts to.
+- Adversarial training hadn't yet been shown to beat standard regularizers like dropout. This made adversarial training seem less useful for general accuracy improvement.
+- L-BFGS based adversarial examples are difficult to obtain so experimentation was limited. Therefore, they couldn't scale to show that adversarial training was better than dropout.
+
+## Introducing the Adversarial Objective
+
+```math
+\tilde J(\theta, x, y) =\alpha J(\theta, x, y) + (1 - \alpha)J(\theta, x + \epsilon \text{sign}(\nabla_x J(\theta, x, y))) 
+```
+This is the core training objective they used - a blended loss function.
+- $J(\theta, x, y)$ is the standard loss on the clean input $x$.
+- $J(\theta, x + \epsilon \text{sign}(\nabla_x J(\theta, x, y)))$ is the loss on the adversarial example generated from $x$ using the Fast Gradient Sign Method perturbation shown in Section 3.
+- $\alpha \in [0, 1]$ is the hyperparameter determing the weight given to the standard loss and adversarial example loss.
+
+	_"We contintually update our supply of adversarial exmaples"_
+
+- Each mini-batch uses the current network to compute new adversarial examples.
+- This is an online process - adversaries are recomputed during training, always targeting the current weakness of the model.
+- The adversarial examples change and evolve dynamically with respect to the loss as the deep network is trained. 
+
+## Why It Didn't Work Perfectly at First
+
+They state:
+
+	_"We observed that we were not reaching zero error rate on adversarial examples on the training set."_
+
+If you're training on adversarial examples, you should be able to correctly classify them at least on the training set. So something seemed wrong. To fix this they made the model larger, which resulted in increasing its capacity to fit both clean and adversarial examples. However, without adversarial training, this overfits.
+
+They state:
+
+	_"Validation set error was very flat, but adversarial validation set error was not."_
+
+- If you only monitor validation error, you may think learning is done.
+- But the model might still be getting better at resisting adversarial inputs.
+- So they switch to early stopping based on the adversarial validation loss.
+
+## Their Final Strategy and Results
+
+- Used $\alpha = 0.5$ for the blended adversarial loss function.
+- Increased model size from 240 units per layers to 1600 units per layer.
+- Used early stopping based on the adversarial validation error.
+- Retrained on the full training set once early stopping gives a best epoch.
+- Repeated 5 times with different random seeds to average out initialization and dropout randomness.
+
+<Table
+data={{
+	headers: ['Trial', 'Test Error'],
+	rows: [
+		['1-4', '0.77%'],
+		['5', '0.83%'],
+		['Average', '0.782%'],
+	]
+}}
+/>
+
+This beats the previous best on permutation-invariant MNIST:
+
+	_"The previous best was 0.79% from Srivastava et al. (2014), using deep belief nets + dropout."_
+
+
+## Empirical Robustness Gains
+
+Adversarial training dramatically improves robustness to FGSM attacks. The model still makes some mistakes, but now it resists most of the adversarial perturbations it would have otherwise failed on.
+
+	_"The model also became somewhat resistant to adversarial examples.."_
+
+### Resistance to FGSM generated Adversarial Examples
+
+<Table
+data={{
+	headers: ['Type of Training', 'Error Rate on FGSM Adversarial Examples'],
+	rows: [
+		['Standard Training (No adversarial training)', '89.4%'],
+		['Blended Adversarial Training', '17.9%'],
+	]
+}}
+/>
+
+**Recall:** Adversarial examples transfer across models - even between models trained differently.
+
+They test how well each model performs on adversarial examples crafted by the other.
+
+<Table
+data={{
+headers: ['Adversarial Examples', 'Created By', 'Evaluated On'],
+rows: [
+['Original model', 'Adversarially trained model', '19.6%'],
+['Adversarially trained model', 'Original model', '40.9%'],
+]
+}}
+/>
+
+Adversarial training reduces vulnerability to transferred attacks, while increasing attack strength when it generates adversaries.
+
+A problem is that the predictions even for the adversarially trained model are still highly confiden even when it's wrong.
+
+### Interpretability of Learned Features
+
+In the adversarially trained model, the _"Weights became more localized and interpretable."_
+
+## Theoretical Framing of Adversarial Training
+
+	_"The adversarial training procedure can be seen as minimizing the worst-case error..."_
+
+They liken the adversarial training to a minimax game: $\min_\theta \max_{||\eta||_\infty} J(\theta, x+\eta, y)$.
+
+	_"...minimizing an upper bound on expected cost over noisy samples..."
+
+If you add uniform noise $\eta \sim U(-\epsilon, \epsilon)$ the adversarial example is like an extreme case within that space.
+
+Adversarial training focuses on the most damaging sample within the noise region, rather than averaging over all noise - this is much more efficient.
+
+	"_model is able to request labels on new points_"
+
+Analogy to active learning:
+- In traditional active learning: the model asks a human to label points near decision boundaries.
+- Here: the adversarial process generates those informative boundary points, and uses the training label for them.
+
+They then highlight why naive regularization with random noise is weak compared to adversarial noise.
+
+	_"Noise with zero mean and zero covariance is very inefficient..."_
+
+Adding noise from $U(-\epsilon, \epsilon)$ seems like it should help the model become resistant to noise, and it's often used in data augmentation schemes.
+
+But in high dimensions, such noise is _nearly_ orthogonal to the gradient directions that actually change the loss. This means the noise, on average, does nothing to challenge the model.
+
+### Why?
+
+Let's say the decision boundary is sensititve in direction to $v$. If noise is isotropic (i.e., equal in all directions), it's unlikely to move the input meaningfully in the $v$ direction. So: 
+
+```math
+\mathbb{E}[v^T \eta] = 0
+```
+
+### "Hard Example Mining"
+
+	_"...train more efficiently by considering only those noisy points that strongly resist classification."_
+
+Random noise wastes training on uninformative samples. Adversarial noise targets weaknesses of the current model (the model at each epoch).
+
+### Results of Naive Noise-Based Training
+
+<Table
+data={{
+	headers: ['Noise Type', 'Test Error on FGSM Examples', 'Confidence on Wrong Predictions'],
+	rows: [
+		['Random +/- epsilon noise', '86.2%', '97.3%'],
+		['Uniform noise in [-epsilon, epsilon]', '90.4%', '97.8%'],
+	],
+}}
+/>
+
+The baseline model had a result of $89.4\%$, so the uniform noise doesn't help at all.
+
+## Differentiability of the Adversary
+
+_"Because the derivative of the sign function is zero or undefined everywhere..."_
+
+FGSM creates a non-differentiable loss term. This means the model can't see how its parameters affect future adversarial examples.
+
+One can remedy this by using something other than the $\text{sign}$ function, like rotation, that are differentiable. However, they found that this didn't help much:
+
+	_"We did not find nearly as powerful of a regularizing result from this process."_
+
+## Perturbing Input vs Hidden Layers
+
+They then explore where to inject adversarial perturbations. They found that perturbations on the input layer were most effective. Perturbations on hidden layers were mixed. And perturbations on the final hidden layer caused underfitting.
+
+The disappointing results of the perturbation on the last layer is simple explained that the last layer is not a universal approximator. In fact, it's just a linear regression model essentially (with the activation functions as the basis functions).
+
+## Final Thoughts
+
+	_"Adversarial training is only clearly useful when the model has the capacity to learn to resist adversarial examples."_
+
+---
+
+# The Rest of the Paper
+
+The rest of the paper provides more further discussions and theoretical propositions about things like transferrability of adversarial examples.
+

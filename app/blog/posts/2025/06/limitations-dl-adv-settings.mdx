@@ -1,0 +1,29 @@
+---
+title: "Paper Notes: 'The Limitations of Deep Learning in Adversarial Settings'"
+publishedAt: "2025-06-10"
+summary: "An in-depth breakdown on the paper, "The Limitations of Deep Learning in Adversarial Settings" by Papernot et al.
+category: 'lesson'
+subject: 'AML'
+author: 'Austin'
+---
+
+# Abstract
+
+The problem they introduce is that although deep learning is effective at various machine learning tasks, it's _"...imperfections in the training phase of deep neural networks make them vulnerable to adversarial samples..."_. One of their contributions is their formalization of the space of adversaries against deep neural networks (DNNs). They also _"introduce a novel class of algorithms to craft adversarial samples based on a precise understanding of the mapping between inputs and outputs of DNNs."_
+
+In their experiments, they demonstrate the ability to use their algorithms to reliably produce samples correctly classified by human subjects but misclassified in specific targets by a DNN with a 97% adversarial success rate while only modifying 4.02% of the input features per sample.
+
+They then evaluate the vulnerability of different sample classes to adversarial perturbations by defining a "hardness measure".
+
+They then conclude by describing preliminary work outlining defenses against adversarial samples _"by defining a predictive measure of distance between a benign input and a target classification."_
+
+# Introduction
+
+They provide motivation for their work by describing the rapid growth and improvements of deep learning, which has in turn increased or created new incentives for adversaries to manipulate DNNs to force misclassification of inputs.
+
+_"An adversarial sample is an input crafted to cause deep learning algorithms to misclassify. Note that adversarial samples are created at test time, after the DNN has been trained by the defender, and do not require any alteration of the training process."_
+
+If you've read _"Explaining and Harnessing Adversarial Examples"_ (Goodfellow et al., 2017) you should have a good understanding of the implications of this for both the adversary crafting the malicious input and the defender when training their models to be adversarially resistant.
+
+They then show a figure of adversarial sample generation. The dataset is the MNIST dataset
+

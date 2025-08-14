@@ -1,0 +1,63 @@
+---
+title: "Intro to Graph Neural Networks"
+publishedAt: "2025-05-30"
+summary: "A brief but useful lessson on Graph Neural Nets."
+category: 'lesson'
+subject: 'deep-learning'
+author: 'Austin'
+---
+
+This is a brief, friendly, and (hopefully) useful introduction to Graph Neural Networks (GNNs). I decided to write a post about GNNs because of their growing prevalance in data science problems that require a global (such as topological) structure of the data. Understanding your data is paramount to good data science, so improving on our upstream pre-processing and analysis of data before processing them through models is really important and impactful.
+
+In this post we will be following _"Graph Representation Learning"_ by William L. Hamilton and some simple code that I wrote based on [INSERT HERE] after we get some theory down.
+
+## Prereqs
+
+To understands GNNs, I highly recommend having a foundation in the following:
+- Graph Theory
+- Machine Learning
+- Feedforward Neural Networks
+- Convolutional Neural Networks (optional, but recommended)
+
+# Introduction
+
+First let's introduce what **representation learning** is, as this is a largely useful application of GNNs in practice.
+
+## Representation Learning
+
+**Representation learning** is the process of automatically discovering useful representations (or features) of data so that downstream tasks (like classification, regression, or clustering) become easier.
+
+Examples:
+- In images, pixels are low-level representations. We may prefer edges, textures, or object parts/patterns - these are learned representations (In fact, CNNs do this in the hidden layers!).
+- In graphs, raw adjacency lists are hard to work with. A good learned representation might capture a node's communinity, role, or connectivity patterns.
+
+### Why is Representation Learning Important?
+
+#### 1. Feature Engineering Bottleneck:
+- Before deep learning, machine learning relied more heavily on manually designed features (e.g., SIFT for images and bag-of-words for text). Representation learning automates feature engineering.
+#### 2. Generalization & Transfer
+- Good representations transfer to other tasks.
+#### 3. Non-Euclidean or Structured Data
+- For graphs, molecules, or time series, representation learning helps find an embedding in a more tractable space.
+
+### How is it Different from ML?
+
+In traditional ML, like SVMs, decision trees, or linear regression, we assume the input features are already meaningful.
+
+Representaiton learning is about _learning the features themselves_.
+
+### Use Cases
+
+To motivate representation learning, here are some use cases in data science:
+- **Computer Vision** - CNNs learn hierarchical representations
+  - Lower layers typically learn edges and textures
+  - Middle layers will learn more complicated patterns like object parts
+  - Higher layers learn even more complicated patterns like entire objects
+- **Natural Language Processing** - Word Embeddings (Word2Vec, GloVe, BERT)
+  - Words are mapped to dense vectors that capture semantic meaning.
+- **Graph Data** – GNNs
+  - GNNs learn representations of nodes/edges/entire graphs that encode structural and feature information.
+
+<br/>
+
+-

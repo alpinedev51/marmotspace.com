@@ -1,0 +1,175 @@
+---
+title: "Host a Personal Website with Vercel"
+publishedAt: "2025-04-10"
+summary: "A simple guide to help get started hosting a portfolio on a personal website using Vercel."
+tag: "Technology"
+category: "lesson"
+subject: "dev"
+author: "Austin"
+---
+
+# Using Vercel to Host a Personal Website for Free
+
+This website is powered by [Vercel](https://vercel.com) and built using the [Next.js](https://nextjs.org/), a popular [React](https://react.dev/) framework.
+
+# Introduction
+
+We believe in accessibility in technology, especially technology that is open source and we use for free. That’s why I wanted to create a short guide showing how I built and deployed this website, so you can do the same.
+
+While this setup might be a little more technical than traditional website builders like Squarespace or Wix, it's still very doable, even for beginners. If you’re new to programming, don’t worry: you can deploy a polished starter website using Vercel and a custom domain name with little to no coding. That said, customizing the site or maintaining it long-term is easier if you have some programming background, but if you're open to learning, this is a great opportunity.
+
+Helpful skills (but not required):
+
+- Basic understanding of JavaScript or TypeScript
+- Familiarity with React and Node.js
+- Comfort working with HTML and CSS
+
+## Hosting Services
+
+A hosting service provides the infrastructure that allows your website to be accessible on the internet. When someone visits your site, the hosting service delivers your website’s files to their browser. There are many hosting providers out there—like Netlify, GitHub Pages, and traditional hosts like Bluehost or DreamHost—but Vercel is a standout choice for modern frontend frameworks like Next.js.
+
+## Website Builders vs. Open Source Code Repository
+
+Website builders like Squarespace and Wix are great for quick, no-code setups—but they can be limiting. Using open source code from platforms like GitHub gives you full control, more flexibility, and better performance, especially if you're comfortable with a bit of coding.
+
+## Vercel
+
+[Vercel](https://vercel.com) is a modern hosting platform that specializes in frontend frameworks like Next.js. It integrates seamlessly with GitHub, GitLab, or Bitbucket—automatically deploying your site every time you push changes to your code.
+
+Vercel offers fast global content delivery, built-in CI/CD, and zero-configuration deployment for many frontend frameworks. Best of all, it has a generous free tier—perfect for personal sites, portfolios, and blogs like this one.
+
+## Domains and Domain Name System (DNS)
+
+A domain is your website’s address on the internet (like yourname.com). DNS (Domain Name System) connects that name to the server where your site lives. When using Vercel, you can either use a free .vercel.app subdomain or connect your own custom domain. Vercel makes DNS setup straightforward—just follow the prompts or update a few records with your domain registrar.
+
+## Getting Started: Cloning a Starter Kit
+
+1. **Create a Vercel Account**
+Go to [vercel.com](https://vercel.com) and sign up (or log in) with your GitHub account.
+
+2. **Import a Starter Template**
+Click “Add New..." and select "Project”, then connect your GitHub if prompted. Browse the templates (like Magic Portfolio), select one, and click “Create”.
+
+3. **Repository Setup**
+Vercel will create a new GitHub repository in your account with the starter code.
+
+4. **Clone the Project Locally**
+Clone your project's repo locally. These are the steps in general to follow in your terminal:
+
+```bash
+git clone https://github.com/<your-username>/<project-name>.git
+cd <project-name>
+```
+
+5. **Install Dependencies**
+Inside the project folder, install everything with:
+
+```nginx
+npm install
+```
+
+6. **Run Locally**
+Start the development server:
+
+```arduino
+npm run dev
+```
+
+Your site should be live at http://localhost:3000.
+
+7. **Customize Your Site**
+Open the project in your code editor and begin editing components, pages, or styles to make it your own.
+
+8. **Push Changes**
+Commit and push your changes to GitHub. Vercel will auto-deploy the updates to your live site.
+
+9. **Set Up a Custom Domain (Optional)**
+
+- Buy a domain from a registrar like Squarespace or Namecheap.
+
+- In the Vercel dashboard, go to your project → Settings → Domains
+
+- Add your domain and follow the DNS setup instructions (usually just adding A or CNAME records with your registrar).
+
+---
+
+## Features with Vercel
+
+### Building
+
+Vercel automatically configures the build settings for many front-end frameworks, but you can also customize the build according to your requirements.
+
+You can override the settings from under the **Framework Settings** subsection in the **Build & Deployment Settings** section. For example, instead of the Build Command being `pnpm run build` you could replace it with `npm run build` or `turbo run build`, depending on what build framework you want to use.
+
+In addition to that, you can specify the root directory, output directory, install command, development command, and build system versions.
+
+### Deploying to Vercel
+
+A **deployment** on Vercel is the result of a successful build of your project. Each time you deploy, Vercel generates a unique URL so you can preview changes in a live environment.
+
+You can use Git, Vercel CLI, Deploy Hooks, or Vercel's REST API to deploy. Personally, I use the integration with Git to deploy. This is very beginner friendly and Vercel takes care of setting up this integration for you. The Git integration is compatible with GitHub, GitLab, and BitBucket.
+
+There is also a very convenient **Deployments** tab in the project's dashboard where you can:
+- Redploy
+- Inspect
+- Assign a Custom Domain
+- Promote to Production
+
+### Integrations
+
+One of the most practical and powerful features of Vercel is its seamless integration with GitHub, GitLab and BitBucket. You can connect your repository to Vercel and then the deployment process becomes largely automated and tightly tied to your Git workflow.
+
+Here is how it works in practice:
+
+- **Automatic Deployments for Every Branch:** Vercel allows for automatic deployments on ever branch push and merges onto the production branch of your project.
+
+- **Preview Deployments on Merge:** Vercel creates a unique deployment you can use to preview your changes before merging to your site hosted on your production domain.
+
+- **Automated Production Deployments:** When you are ready to deploy the changes on your user-facing site, a production deployment is triggered on a merge to your production branch.
+
+- **Rollbacks**: Vercel provides instant rollbacks when reverting changes assigned to a custom domain.
+
+Tip: Vercel also supports preview environment variables, custom build settings per branch, and team collaboration tools directly linked to each deployment.
+
+### Environments
+
+Vercel provides environments for developing locally, testing changes in a pre-production environment, and serving end-users in production.
+
+Vercel provides three default environments:
+
+- Local: used for developing and testing changes locally.
+- Preview: deploying for further testing acting as a sort of "test run" of your changes without impacting your live site
+- Production: deploying the final changes to the user-facing site with the production domain
+
+### Cron Jobs
+
+[Cron](https://en.wikipedia.org/wiki/Cron) jobs are time-based scheduling tools used to automate repetitive tasks. By using syntax called a [cron expression](https://vercel.com/docs/cron-jobs#cron-expressions), you can define the frequency and timing of each task.
+
+You can use cron jobs for many different tasks. Anything that can we scripted can be automated with a cron job. On my personal Linux device I have various cron jobs on my device such as backing up my system's image.
+
+For your personal site, you can use cron jobs to:
+- Send a weekly newsletter
+- Backup files and archive them
+- Sending email updates
+- Uploading blogs
+
+<br/>
+
+---
+
+Summary
+
+Hosting a personal website with Vercel is a fast, flexible, and beginner-friendly way to showcase your work, share your thoughts, or build a personal brand online. With tools like Next.js, and GitHub integration, you can launch a modern, performant site in minutes &mdash; and customize it as much as you want.
+
+Whether you're just experimenting with web development or building a polished portfolio, this setup gives you a great balance between ease of use and long-term flexibility. You own the code, control the design, and learn valuable development skills along the way.
+
+If you followed this guide, you should now have:
+
+A live personal website on the internet
+
+A GitHub repo you can update and customize anytime
+
+Optional custom domain settings in place
+
+I hope this guide helped you take that first step. Now go make it your own!
+
