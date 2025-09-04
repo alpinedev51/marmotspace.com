@@ -24,10 +24,6 @@ export default function Page() {
       <h2 className="mt-10 mb-4 text-2xl font-semibold text-stone-100">Outside of Work</h2>
 
       <p className="mb-4">
-        I regularly enjoy Crossfit, trail running, and climbing. I’m passionate about the outdoors, fitness, and adventure whether that’s mountain biking, surfing, or snowboarding.
-      </p>
-
-      <p className="mb-4">
         This site is sort of my public notebook: expect commentary on science and tech, essays on society and philosophy, and the occasional deep dive into tools, trends, and ideas shaping the world.
       </p>
 
